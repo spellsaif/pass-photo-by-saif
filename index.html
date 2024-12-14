@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PassPhoto By Saif</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            background: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 800px;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        input[type="file"] {
+            margin-bottom: 20px;
+        }
+
+        .preview {
+            margin: 20px 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 1px dashed #ccc;
+            padding: 10px;
+            height: 200px;
+            position: relative;
+        }
+
+        .preview img {
+            max-height: 100%;
+            max-width: 100%;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .control-group {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .btn {
+            background: #007BFF;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .btn:hover {
+            background: #0056b3;
+        }
+
+        .output {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .a4-preview {
+            border: 1px solid #ddd;
+            margin: 20px 0;
+            width: 210mm;
+            height: 297mm;
+            background: #fff;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .a4-preview canvas {
+            position: absolute;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 style="font-family: 'Courier New', Courier, monospace; font-weight: bold;">Pass Photo By Saif</h1>
+        <input type="file" id="upload" accept="image/*">
+        <div class="preview" id="preview">
+            <p>No image uploaded</p>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="bg-color">Background Color:</label>
+                <input type="color" id="bg-color" value="#ffffff">
+            </div>
+
+            <div class="control-group">
+                <label for="replicate">Number of copies on A4:</label>
+                <input type="number" id="replicate" min="1" max="50" value="8">
+            </div>
+
+            <div class="control-group">
+                <label for="alignment">Alignment on A4:</label>
+                <select id="alignment">
+                    <option value="top-left">Top Left</option>
+                    <option value="top-right">Top Right</option>
+                    <option value="center">Center</option>
+                    <option value="bottom-left">Bottom Left</option>
+                    <option value="bottom-right">Bottom Right</option>
+                </select>
+            </div>
+        </div>
+
+        <button class="btn" id="process">Process Image</button>
+        <button class="btn" id="preview-a4">Preview A4 Layout</button>
+        <button class="btn" id="download">Download PDF</button>
+
+        <div class="a4-preview" id="a4-preview">
+            <p style="text-align:center; line-height:297mm; color:#999;">A4 Preview</p>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
+    <script>
+        const upload = document.getElementById('upload');
+        const preview = document.getElementById('preview');
+        const bgColor = document.getElementById('bg-color');
+        const replicate = document.getElementById('replicate');
+        const alignment = document.getElementById('alignment');
+        const processBtn = document.getElementById('process');
+        const previewA4Btn = document.getElementById('preview-a4');
+        const downloadBtn = document.getElementById('download');
+        const a4Preview = document.getElementById('a4-preview');
+
+        let originalImage = null;
+        let processedCanvas = null;
+
+        upload.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const img = document.createElement('img');
+                    img.src = reader.result;
+                    preview.innerHTML = '';
+                    preview.appendChild(img);
+                    originalImage = img;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        processBtn.addEventListener('click', () => {
+            if (!originalImage) {
+                alert('Please upload an image first.');
+                return;
+            }
+
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+
+            // Crop to square based on the smaller dimension
+            const cropSize = Math.min(originalImage.naturalWidth, originalImage.naturalHeight);
+            const sx = (originalImage.naturalWidth - cropSize) / 2;
+            const sy = (originalImage.naturalHeight - cropSize) / 2;
+
+            // Set to passport size (35x45 mm in pixels)
+            const passportWidth = 350;
+            const passportHeight = 450;
+
+            canvas.width = passportWidth;
+            canvas.height = passportHeight;
+            ctx.fillStyle = "#86E5FD";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(originalImage, sx, sy, cropSize, cropSize, 0, 0, passportWidth, passportHeight);
+
+            processedCanvas = canvas;
+
+            const processedImg = new Image();
+            processedImg.src = canvas.toDataURL();
+            preview.innerHTML = '';
+            preview.appendChild(processedImg);
+        });
+
+        previewA4Btn.addEventListener('click', () => {
+            if (!processedCanvas) {
+                alert('Please process an image first.');
+                return;
+            }
+
+            const a4Canvas = document.createElement('canvas');
+            const ctx = a4Canvas.getContext('2d');
+
+            a4Canvas.width = 2480; // A4 width in pixels at 300 DPI
+            a4Canvas.height = 3508; // A4 height in pixels at 300 DPI
+
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(0, 0, a4Canvas.width, a4Canvas.height);
+
+            const imgData = processedCanvas.toDataURL();
+            const img = new Image();
+            img.src = imgData;
+
+            const copies = parseInt(replicate.value, 10);
+            const passportWidth = 350;
+            const passportHeight = 450;
+
+            img.onload = () => {
+                for (let i = 0; i < copies; i++) {
+                    const x = 4 + (i % 5) * (passportWidth + 4); // 4px margin between images
+                    const y = 4 + Math.floor(i / 5) * (passportHeight + 4); // 4px margin between rows
+                    ctx.drawImage(img, x, y, passportWidth, passportHeight);
+                }
+
+                const previewImg = new Image();
+                previewImg.src = a4Canvas.toDataURL();
+                a4Preview.innerHTML = '';
+                a4Preview.appendChild(previewImg);
+            };
+        });
+
+        downloadBtn.addEventListener('click', () => {
+            if (!processedCanvas) {
+                alert('Please process an image first.');
+                return;
+            }
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('portrait', 'mm', 'a4');
+            const imgData = processedCanvas.toDataURL('image/jpeg', 1.0);
+            const copies = parseInt(replicate.value, 10);
+
+            const passportWidth = 35;
+            const passportHeight = 45;
+
+            for (let i = 0; i < copies; i++) {
+                const x = 10 + (i % 5) * (passportWidth + 4); // 4px margin between images
+                const y = 10 + Math.floor(i / 5) * (passportHeight + 4); // 4px margin between rows
+                doc.addImage(imgData, 'JPEG', x, y, passportWidth, passportHeight);
+
+                if (y + passportHeight + 10 > 280 && i + 1 < copies) {
+                    doc.addPage();
+                }
+            }
+
+            doc.save('processed-image.pdf');
+        });
+    </script>
+</body>
+</html>
